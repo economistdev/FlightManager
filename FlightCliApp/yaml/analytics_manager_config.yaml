@@ -1,0 +1,33 @@
+
+analytics_queries:
+  airports_by_country: >
+    SELECT
+      ctry.country_name AS Country,
+      arpt.airport_name AS Airport,
+      COUNT(*) OVER (PARTITION BY ctry.country_name) AS [No. Airport in Country]
+    FROM countries ctry
+    LEFT JOIN airports arpt ON ctry.id = arpt.country_id
+    ORDER BY [No. Airport in Country] DESC
+  capacity_by_route: >
+    SELECT
+      departure_airport || ' -> ' || destination_airport AS Route,
+      SUM(aircraft_max_capacity) / NULLIF(COUNT(*), 0) AS [Ave. Passenger Capacity],
+      SUM(aircraft_max_capacity) AS [Total Passenger Capacity]
+    FROM flights_view
+    GROUP BY departure_airport, destination_airport
+    ORDER BY [Total Passenger Capacity] DESC
+  flights_by_pilot: >
+    SELECT
+      pilot AS Pilot,
+      COUNT(*) AS [No. of Flights]
+    FROM (
+      SELECT captain AS pilot
+      FROM flights_view
+      WHERE flight_status != 'Cancelled'
+      UNION ALL
+      SELECT first_officer AS pilot
+      FROM flights_view
+      WHERE flight_status != 'Cancelled'
+    ) a
+    GROUP BY pilot
+    ORDER BY [No. of Flights] DESC

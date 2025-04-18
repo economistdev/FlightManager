@@ -1,0 +1,87 @@
+flight_create_params:
+  input:
+    Captain:
+      insert_col: captain_id
+      necessary: false
+      options: >
+        SELECT id, pilot_first_name || ' ' || pilot_last_name AS Captain
+        FROM pilot
+    First Officer:
+      insert_col: first_officer_id
+      necessary: false
+      options: >
+        SELECT id, pilot_first_name || ' ' || pilot_last_name AS [First Officer]
+        FROM pilot
+    Departure Airport:
+      insert_col: departure_airport_id
+      necessary: true
+      options: SELECT id, airport_name AS Airport FROM airports
+    Destination Airport:
+      insert_col: destination_airport_id
+      necessary: true
+      options: SELECT id, airport_name AS Airport FROM airports
+    Departure Date (YYYY-MM-DD):
+      insert_col: departure_date
+      necessary: true
+      options: null
+    Departure Time (HH:MM):
+      insert_col: departure_time
+      necessary: true
+      options: null
+    Aircraft Assignment:
+      insert_col: aircraft_id
+      necessary: false
+      options: SELECT * FROM aircraft_inventory_view
+    Flight Status:
+      insert_col: flight_status_id
+      necessary: true
+      options: SELECT id, status AS Status FROM flight_status
+
+  insert_query: >
+    INSERT INTO flights (
+      departure_airport_id, destination_airport_id,
+      departure_date, departure_time,
+      captain_id, first_officer_id,
+      flight_status_id, aircraft_id
+    )
+    VALUES (
+      :departure_airport_id, :destination_airport_id,
+      :departure_date, :departure_time,
+      :captain_id, :first_officer_id,
+      :flight_status_id, :aircraft_id
+    )
+
+flight_filter_params:
+  filter_query: SELECT * FROM flights_view WHERE
+  input:
+    Captain:
+      filter_col: captain
+      valid_values: >
+        SELECT pilot_first_name || ' ' || pilot_last_name AS Captain
+        FROM pilot
+    First Officer:
+      filter_col: first_officer
+      valid_values: >
+        SELECT pilot_first_name || ' ' || pilot_last_name AS Captain
+        FROM pilot
+    Departure Airport:
+      filter_col: departure_airport
+      valid_values: SELECT airport_name AS Airport FROM airports
+    Destination Airport:
+      filter_col: destination_airport
+      valid_values: SELECT airport_name AS Airport FROM airports
+    Departure Date (YYYY-MM-DD):
+      filter_col: departure_date
+      valid_values: null
+    Departure Time (HH:MM):
+      filter_col: departure_time
+      valid_values: null
+    Aircraft Make:
+      filter_col: aircraft_make
+      valid_values: SELECT manufacturer_name AS Manufacturer FROM aircraft_manufacturer
+    Aircraft Model:
+      filter_col: aircraft_model
+      valid_values: SELECT model AS Model FROM aircraft_type
+    Flight Status:
+      filter_col: flight_status
+      valid_values: SELECT status AS Status FROM flight_status

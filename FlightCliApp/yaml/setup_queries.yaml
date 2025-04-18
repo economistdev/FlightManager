@@ -1,0 +1,205 @@
+create_tables:
+  pilot: |
+    CREATE TABLE IF NOT EXISTS pilot (
+        id INTEGER PRIMARY KEY,
+        pilot_first_name TEXT NOT NULL CHECK(pilot_first_name != ''),
+        pilot_last_name TEXT NOT NULL CHECK(pilot_last_name != '')
+    );
+  aircraft_manufacturer: |
+    CREATE TABLE IF NOT EXISTS aircraft_manufacturer (
+        id INTEGER PRIMARY KEY,
+        manufacturer_name TEXT NOT NULL CHECK(manufacturer_name != ''),
+        manufacturer_address TEXT NOT NULL CHECK(manufacturer_address != '')
+    );
+  aircraft_type: |
+    CREATE TABLE IF NOT EXISTS aircraft_type (
+        id INTEGER PRIMARY KEY,
+        model TEXT NOT NULL CHECK(model != ''),
+        aircraft_manufacturer_id INTEGER NOT NULL,
+        capacity INTEGER NOT NULL CHECK(capacity > 0),
+        FOREIGN KEY (aircraft_manufacturer_id) REFERENCES aircraft_manufacturer(id) ON DELETE RESTRICT
+    );
+  aircraft_inventory: |
+    CREATE TABLE IF NOT EXISTS aircraft_inventory (
+        id INTEGER PRIMARY KEY,
+        aircraft_type_id INTEGER NOT NULL,
+        FOREIGN KEY (aircraft_type_id) REFERENCES aircraft_type(id) ON DELETE RESTRICT
+    );
+  countries: |
+    CREATE TABLE IF NOT EXISTS countries (
+        id INTEGER PRIMARY KEY,
+        country_name TEXT NOT NULL CHECK(country_name != '')
+    );
+  airports: |
+    CREATE TABLE IF NOT EXISTS airports (
+        id INTEGER PRIMARY KEY,
+        airport_name TEXT NOT NULL CHECK(airport_name != ''),
+        country_id INTEGER NOT NULL,
+        FOREIGN KEY (country_id) REFERENCES countries(id) ON DELETE RESTRICT
+    );
+  flight_status: |
+    CREATE TABLE IF NOT EXISTS flight_status (
+        id INTEGER PRIMARY KEY,
+        status TEXT NOT NULL CHECK(status != ''),
+        description TEXT NOT NULL CHECK(description != '')
+    );
+  flights: |
+    CREATE TABLE IF NOT EXISTS flights (
+        id INTEGER PRIMARY KEY,
+        departure_airport_id INTEGER NOT NULL,
+        destination_airport_id INTEGER NOT NULL,
+        departure_date TEXT NOT NULL,
+        departure_time TEXT NOT NULL,
+        captain_id INTEGER,
+        first_officer_id INTEGER,
+        flight_status_id INTEGER NOT NULL,
+        aircraft_id INTEGER,
+        FOREIGN KEY (departure_airport_id) REFERENCES airports(id),
+        FOREIGN KEY (destination_airport_id) REFERENCES airports(id),
+        FOREIGN KEY (captain_id) REFERENCES pilot(id),
+        FOREIGN KEY (first_officer_id) REFERENCES pilot(id),
+        FOREIGN KEY (flight_status_id) REFERENCES flight_status(id),
+        FOREIGN KEY (aircraft_id) REFERENCES aircraft_inventory(id),
+        CHECK(
+          destination_airport_id IS NULL OR
+          departure_airport_id IS NULL OR
+          departure_airport_id != destination_airport_id
+        ),
+        CHECK(
+          captain_id IS NULL OR
+          first_officer_id IS NULL OR
+          captain_id != first_officer_id
+        ),
+        CHECK(
+            LENGTH(departure_time) = 5
+            AND departure_time GLOB '[0-2][0-9]:[0-5][0-9]'
+            AND CAST(SUBSTR(departure_time, 1, 2) AS INTEGER) BETWEEN 0 AND 23
+            AND CAST(SUBSTR(departure_time, 4, 5) AS INTEGER) BETWEEN 0 AND 59
+        ),
+        CHECK(
+            LENGTH(departure_date) = 10
+            AND departure_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][1-9]-[0-3][0-9]'
+            AND CAST(SUBSTRING(departure_date, 6, 7) AS INTEGER) BETWEEN 1 AND 12
+            AND CAST(SUBSTRING(departure_date, 9, 10) AS INTEGER) BETWEEN 1 AND 31
+        )
+    );
+create_views:
+  flights_view: |
+    CREATE VIEW IF NOT EXISTS flights_view AS
+    SELECT 
+        f.id,
+        a1.airport_name AS departure_airport,
+        a2.airport_name AS destination_airport,
+        f.departure_date,
+        f.departure_time,
+        p1.pilot_first_name || ' ' || p1.pilot_last_name AS captain,
+        p2.pilot_first_name || ' ' || p2.pilot_last_name AS first_officer,
+        fs.status AS flight_status,
+        at.model AS aircraft_model,
+        am.manufacturer_name AS aircraft_make,
+        at.capacity AS aircraft_max_capacity
+    FROM flights f
+    LEFT JOIN airports a1 ON f.departure_airport_id = a1.id
+    LEFT JOIN airports a2 ON f.destination_airport_id = a2.id
+    LEFT JOIN pilot p1 ON f.captain_id = p1.id
+    LEFT JOIN pilot p2 ON f.first_officer_id = p2.id
+    LEFT JOIN flight_status fs ON f.flight_status_id = fs.id
+    LEFT JOIN aircraft_inventory ai ON f.aircraft_id = ai.id
+    LEFT JOIN aircraft_type at ON ai.aircraft_type_id = at.id
+    LEFT JOIN aircraft_manufacturer am ON at.aircraft_manufacturer_id = am.id;
+  aircraft_inventory_view: |
+    CREATE VIEW IF NOT EXISTS aircraft_inventory_view AS
+    SELECT 
+      ai.id, 
+      at.model, 
+      am.manufacturer_name as make, 
+      at.capacity 
+    FROM aircraft_inventory ai
+    LEFT JOIN aircraft_type at ON ai.aircraft_type_id = at.id
+    LEFT JOIN aircraft_manufacturer am ON at.aircraft_manufacturer_id = am.id
+populate_tables:
+  pilot: |
+    INSERT INTO pilot (pilot_first_name, pilot_last_name)
+    VALUES 
+        ('John', 'Smith'),
+        ('Timmy', 'Sutherland'),
+        ('Jane', 'Doe'),
+        ('Andy', 'Applewood'),
+        ('Craig', 'Newham'),
+        ('Lara', 'Craft'),
+        ('Miller', 'Bankman'),
+        ('Ignacio', 'Fuentes')
+  aircraft_manufacturer: |
+    INSERT INTO aircraft_manufacturer (manufacturer_name, manufacturer_address)
+    VALUES 
+        ('Boeing', '929 Long Bridge Drive, Arlington, Virginia, 22202, USA'),
+        ('Airbus', '1, Rond Point Maurice Bellonte, 31707 Blagnac Cedex, France');
+  aircraft_type: |
+    INSERT INTO aircraft_type (model, aircraft_manufacturer_id, capacity)
+    VALUES 
+        ('737', 1, 230),
+        ('787-10', 1, 336),
+        ('A350', 2, 410);
+  aircraft_inventory: |
+    INSERT INTO aircraft_inventory (aircraft_type_id)
+    VALUES 
+        (1),
+        (3),
+        (3),
+        (2),
+        (1),
+        (1),
+        (2);
+  countries: |
+    INSERT INTO countries (country_name)
+    VALUES 
+        ('United Kingdom'),
+        ('Spain'),
+        ('Italy'),
+        ('South Korea'),
+        ('Mexico'),
+        ('France'),
+        ('Canada');
+  airports: |
+    INSERT INTO airports (airport_name, country_id)
+    VALUES 
+        ('Bristol International', 1),
+        ('Heathrow', 1),
+        ('Leonardo da Vinci International', 3),
+        ('Seoul Incheon', 4),
+        ('Barcelona', 2),
+        ('Mexico City International', 5),
+        ('Vancouver International', 7),
+        ('Paris Charles de Gaulle', 6),
+        ('Manchester', 1),
+        ('Madrid', 2)
+  flight_status: |
+    INSERT INTO flight_status (status, description)
+    VALUES 
+        ('Boarding', 'Passengers are boarding the aircraft'),
+        ('In-Flight', 'The flight is currently in progress'),
+        ('Upcoming', 'The flight is planned to take place more than 24 hours away'),
+        ('Delayed', 'The flight will be later than expected'),
+        ('Landed', 'The flight successfully landed and completed'),
+        ('Cancelled', 'The flight has been cancelled and will no longer take place');
+  flights: |
+    INSERT INTO flights (
+        departure_airport_id, destination_airport_id, departure_date, departure_time,
+        captain_id, first_officer_id, flight_status_id, aircraft_id
+    )
+    VALUES 
+        (1, 2, '2024-05-23', '14:32', 1, 2, 5, 1),
+        (2, 1, '2024-05-23', '15:45', 1, 2, 5, 1),
+        (2, 6, '2024-05-25', '09:15', 3, 2, 5, 6),
+        (6, 2, '2024-05-27', '23:15', 3, 2, 5, 4),
+        (6, 2, '2025-05-27', '20:15', 8, 7, 3, 3),
+        (8, 7, '2025-05-27', '21:45', 6, 5, 3, 2),
+        (2, 7, '2025-06-01', '23:15', 6, 3, 3, 5),
+        (7, 8, '2025-06-05', '09:10', 6, 4, 3, 7),
+        (7, 4, '2025-06-06', '14:50', 5, 4, 3, 5),
+        (2, 4, '2025-07-15', '12:00', 3, 2, 3, 3),
+        (2, 4, '2025-08-15', '12:00', 3, 2, 3, 4),
+        (2, 4, '2025-09-15', '12:00', 3, 2, 3, 5),
+        (4, 2, '2025-05-22', '06:40', 4, 2, 6, 4),
+        (5, 8, '2025-08-19', '22:15', 4, 2, 3, 6),
+        (3, 2, '2025-08-19', '23:15', 3, 2, 6, 1)

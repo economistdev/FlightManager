@@ -1,0 +1,3 @@
+first_run: true
+show_flights: SELECT * FROM flights_view
+show_flights_by_id: SELECT * FROM flights_view WHERE id = ?
